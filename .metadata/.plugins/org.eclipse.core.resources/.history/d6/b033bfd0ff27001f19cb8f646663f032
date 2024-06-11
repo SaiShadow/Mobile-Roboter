@@ -233,12 +233,12 @@ void driveDemo() {
 }
 
 
-//void driveStraight(int speed, int direction) {
-//	drive(speed);
-//	startTime = HAL_GetTick();
-//	regulateSpeed(speed, direction);
-//
-//}
+void driveStraight(int speed, int direction) {
+	drive(speed);
+	startTime = HAL_GetTick();
+	regulateSpeed(speed, direction);
+
+}
 
 volatile uint32_t adc[6];
 uint32_t buffer[6];
@@ -249,35 +249,6 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc1) {
 	}
 	conversion_done_flag = 1;
 }
-
-void schmidtToCsv() {
-	if (conversion_done_flag) {
-		conversion_done_flag = 0;
-		HAL_ADC_Start_DMA(&hadc1, buffer, 6);
-	}
-	// into CSV format
-	char string_buf[100];
-	uint16_t len = 0;
-	schmidtTrigger(adc);
-	format_encoderValue_to_csv(adc, string_buf, &len);
-
-	HAL_UART_Transmit(&huart2, (uint8_t*) string_buf, len, 1000000);
-}
-
-void adcToCsv() {
-	if (conversion_done_flag) {
-		conversion_done_flag = 0;
-		HAL_ADC_Start_DMA(&hadc1, buffer, 6);
-	}
-	// into CSV format
-	char string_buf[100];
-	uint16_t len = 0;
-	format_adc_to_csv(adc, string_buf, &len);
-	format_encoderValue_to_csv(adc, string_buf, &len);
-	HAL_UART_Transmit(&huart2, (uint8_t*) string_buf, len, 1000000);
-}
-
-
 
 /**
  * Assignment 5 Question 4.4
@@ -307,21 +278,20 @@ void taskLED() {
 		break;
 	}
 }
-
 uint64_t startTime = 0;
-
 void regulateSpeed(int speed, int direction) {
 	int current_time = HAL_GetTick();
+	int t = startTime;
 
-	if (current_time - startTime < 500) {
-		return;
-	}
+//	if (current_time - t < 500) {
+//		return;
+//	}
 
 	int left = numberOfEncoderTicks_LEFT;
 	int right = numberOfEncoderTicks_RIGHT;
 
-	int64_t dif = left - right;
-	int64_t difference = dif / 2;
+	uint64_t dif = left - right;
+	uint64_t difference = dif / 2;
 
 	if (difference == 0) {
 		return;
@@ -333,8 +303,45 @@ void regulateSpeed(int speed, int direction) {
 		driveLeft(speed - difference, direction);
 	}
 
-	startTime = HAL_GetTick();
+//	uint64_t difference = left - right;
+//	if (difference == 0) {
+//		return;
+//	} else if (difference < 0) { // right is faster
+//		driveLeft(speed - difference * 1100, direction);
+//	} else { // left is faster
+//		driveRight(speed + difference * 1100, direction);
+//	}
+
 }
+void schmidtToCsv() {
+	if (conversion_done_flag) {
+		conversion_done_flag = 0;
+		HAL_ADC_Start_DMA(&hadc1, buffer, 6);
+	}
+	// into CSV format
+	char string_buf[100];
+	uint16_t len = 0;
+	schmidtTrigger(adc);
+	format_encoderValue_to_csv(adc, string_buf, &len);
+
+	HAL_UART_Transmit(&huart2, (uint8_t*) string_buf, len, 1000000);
+}
+
+void adcToCsv() {
+	if (conversion_done_flag) {
+		conversion_done_flag = 0;
+		HAL_ADC_Start_DMA(&hadc1, buffer, 6);
+	}
+	// into CSV format
+	char string_buf[100];
+	uint16_t len = 0;
+	format_adc_to_csv(adc, string_buf, &len);
+	format_encoderValue_to_csv(adc, string_buf, &len);
+
+	HAL_UART_Transmit(&huart2, (uint8_t*) string_buf, len, 1000000);
+	HAL_Delay(50);
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -382,8 +389,6 @@ int main(void) {
 	taskLED_timeout = HAL_GetTick() + 500;
 
 	drive(MAX_SPEED / 2);
-//	driveLeft(MAX_SPEED / 2, 1);
-	startTime = HAL_GetTick();
 
 	/* USER CODE END 2 */
 
@@ -398,7 +403,10 @@ int main(void) {
 
 		/* USER CODE BEGIN 3 */
 
+//// 	Assignment 5 Question 4.4
+//		taskLED();
 		schmidtToCsv();
+		startTime = HAL_GetTick();
 		regulateSpeed(MAX_SPEED / 2, 1);
 
 //		return 0;

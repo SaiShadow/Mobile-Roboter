@@ -1,49 +1,10 @@
-17:00:12 **** Incremental Build of configuration Debug for project ArmuroL432 ****
+17:18:19 **** Incremental Build of configuration Debug for project ArmuroL432 ****
 make -j8 all 
-arm-none-eabi-gcc "../Core/Src/main.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32L432xx -c -I../Core/Inc -I../Drivers/STM32L4xx_HAL_Driver/Inc -I../Drivers/STM32L4xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32L4xx/Include -I../Drivers/CMSIS/Include -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Core/Src/main.d" -MT"Core/Src/main.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Core/Src/main.o"
-../Core/Src/main.c: In function 'format_encoderValue_to_csv':
-../Core/Src/main.c:81:20: warning: implicit declaration of function 'sprintf' [-Wimplicit-function-declaration]
-   81 |         *length += sprintf((char*) (buffer + *length), "%lu,", adc_values[1]);
-      |                    ^~~~~~~
-../Core/Src/main.c:26:1: note: include '<stdio.h>' or provide a declaration of 'sprintf'
-   25 | #include "gpio.h"
-  +++ |+#include <stdio.h>
-   26 | 
-../Core/Src/main.c:81:20: warning: incompatible implicit declaration of built-in function 'sprintf' [-Wbuiltin-declaration-mismatch]
-   81 |         *length += sprintf((char*) (buffer + *length), "%lu,", adc_values[1]);
-      |                    ^~~~~~~
-../Core/Src/main.c:81:20: note: include '<stdio.h>' or provide a declaration of 'sprintf'
-../Core/Src/main.c: In function 'format_adc_to_csv':
-../Core/Src/main.c:124:36: warning: incompatible implicit declaration of built-in function 'sprintf' [-Wbuiltin-declaration-mismatch]
-  124 |                         *length += sprintf((char*) (buffer + *length), ",");
-      |                                    ^~~~~~~
-../Core/Src/main.c:124:36: note: include '<stdio.h>' or provide a declaration of 'sprintf'
-../Core/Src/main.c:126:28: warning: incompatible implicit declaration of built-in function 'sprintf' [-Wbuiltin-declaration-mismatch]
-  126 |                 *length += sprintf((char*) (buffer + *length), "%lu", adc_values[i]);
-      |                            ^~~~~~~
-../Core/Src/main.c:126:28: note: include '<stdio.h>' or provide a declaration of 'sprintf'
-../Core/Src/main.c:129:20: warning: incompatible implicit declaration of built-in function 'sprintf' [-Wbuiltin-declaration-mismatch]
-  129 |         *length += sprintf((char*) (buffer + *length), "\n");
-      |                    ^~~~~~~
-../Core/Src/main.c:129:20: note: include '<stdio.h>' or provide a declaration of 'sprintf'
-../Core/Src/main.c: In function 'regulateSpeed':
-../Core/Src/main.c:237:13: warning: unused variable 't' [-Wunused-variable]
-  237 |         int t = startTime;
-      |             ^
-../Core/Src/main.c:236:13: warning: unused variable 'current_time' [-Wunused-variable]
-  236 |         int current_time = HAL_GetTick();
-      |             ^~~~~~~~~~~~
-arm-none-eabi-gcc -o "ArmuroL432.elf" @"objects.list"   -mcpu=cortex-m4 -T"C:\Users\I744722\STM32CubeIDE\workspace_1.15.1\ArmuroL432\STM32L432KCUX_FLASH.ld" --specs=nosys.specs -Wl,-Map="ArmuroL432.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
-Finished building target: ArmuroL432.elf
- 
 arm-none-eabi-size  ArmuroL432.elf 
-arm-none-eabi-objdump -h -S ArmuroL432.elf  > "ArmuroL432.list"
    text	   data	    bss	    dec	    hex	filename
-  26312	     96	   2376	  28784	   7070	ArmuroL432.elf
+  26420	     96	   2376	  28892	   70dc	ArmuroL432.elf
 Finished building: default.size.stdout
  
-Finished building: ArmuroL432.list
- 
 
-17:00:17 Build Finished. 0 errors, 7 warnings. (took 4s.351ms)
+17:18:23 Build Finished. 0 errors, 0 warnings. (took 3s.501ms)
 

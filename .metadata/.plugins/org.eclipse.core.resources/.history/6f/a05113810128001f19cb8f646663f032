@@ -320,8 +320,8 @@ void regulateSpeed(int speed, int direction) {
 	int left = numberOfEncoderTicks_LEFT;
 	int right = numberOfEncoderTicks_RIGHT;
 
-	int64_t dif = left - right;
-	int64_t difference = dif / 2;
+	uint64_t dif = left - right;
+	uint64_t difference = dif / 2;
 
 	if (difference == 0) {
 		return;
@@ -334,6 +334,16 @@ void regulateSpeed(int speed, int direction) {
 	}
 
 	startTime = HAL_GetTick();
+
+//	uint64_t difference = left - right;
+//	if (difference == 0) {
+//		return;
+//	} else if (difference < 0) { // right is faster
+//		driveLeft(speed - difference * 1100, direction);
+//	} else { // left is faster
+//		driveRight(speed + difference * 1100, direction);
+//	}
+
 }
 /* USER CODE END 0 */
 
@@ -381,8 +391,8 @@ int main(void) {
 	taskLED_state = eStateA;
 	taskLED_timeout = HAL_GetTick() + 500;
 
-	drive(MAX_SPEED / 2);
-//	driveLeft(MAX_SPEED / 2, 1);
+//	drive(MAX_SPEED / 2);
+	driveLeft(MAX_SPEED / 2, 1);
 	startTime = HAL_GetTick();
 
 	/* USER CODE END 2 */

@@ -233,12 +233,12 @@ void driveDemo() {
 }
 
 
-//void driveStraight(int speed, int direction) {
-//	drive(speed);
-//	startTime = HAL_GetTick();
-//	regulateSpeed(speed, direction);
-//
-//}
+void driveStraight(int speed, int direction) {
+	drive(speed);
+	startTime = HAL_GetTick();
+	regulateSpeed(speed, direction);
+
+}
 
 volatile uint32_t adc[6];
 uint32_t buffer[6];
@@ -307,7 +307,6 @@ void taskLED() {
 		break;
 	}
 }
-
 uint64_t startTime = 0;
 
 void regulateSpeed(int speed, int direction) {
@@ -320,8 +319,8 @@ void regulateSpeed(int speed, int direction) {
 	int left = numberOfEncoderTicks_LEFT;
 	int right = numberOfEncoderTicks_RIGHT;
 
-	int64_t dif = left - right;
-	int64_t difference = dif / 2;
+	uint64_t dif = left - right;
+	uint64_t difference = dif / 2;
 
 	if (difference == 0) {
 		return;
@@ -334,6 +333,16 @@ void regulateSpeed(int speed, int direction) {
 	}
 
 	startTime = HAL_GetTick();
+
+//	uint64_t difference = left - right;
+//	if (difference == 0) {
+//		return;
+//	} else if (difference < 0) { // right is faster
+//		driveLeft(speed - difference * 1100, direction);
+//	} else { // left is faster
+//		driveRight(speed + difference * 1100, direction);
+//	}
+
 }
 /* USER CODE END 0 */
 
@@ -382,7 +391,6 @@ int main(void) {
 	taskLED_timeout = HAL_GetTick() + 500;
 
 	drive(MAX_SPEED / 2);
-//	driveLeft(MAX_SPEED / 2, 1);
 	startTime = HAL_GetTick();
 
 	/* USER CODE END 2 */

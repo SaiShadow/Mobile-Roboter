@@ -320,8 +320,8 @@ void regulateSpeed(int speed, int direction) {
 	int left = numberOfEncoderTicks_LEFT;
 	int right = numberOfEncoderTicks_RIGHT;
 
-	int64_t dif = left - right;
-	int64_t difference = dif / 2;
+	uint64_t dif = left - right;
+	uint64_t difference = dif / 2;
 
 	if (difference == 0) {
 		return;

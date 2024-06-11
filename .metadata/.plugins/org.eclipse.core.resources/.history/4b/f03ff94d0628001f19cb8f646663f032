@@ -53,8 +53,8 @@
 /**
  * Assignment 5 Question 1
  */
-#define SW_HIGH 2500
-#define SW_LOW 2000
+#define SW_HIGH 2000
+#define SW_LOW 500
 
 int STATE_LEFT = 0;
 int STATE_RIGHT = 0;
