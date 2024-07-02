@@ -23,6 +23,9 @@
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
+#include <string.h>
+#include <stdio.h>
+#include <math.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -36,7 +39,54 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define ERROR_SIZE 10
 
+#define MS 1
+
+#if MS == 0
+	#define ENCODER_UPPER_BOUND_RIGHT 2500
+	#define ENCODER_LOWER_BOUND_RIGHT 1500
+
+	#define ENCODER_UPPER_BOUND_LEFT 2500
+	#define ENCODER_LOWER_BOUND_LEFT 500
+
+	#define LINE_SENSOR_BLACK 3000
+
+	#define LINE_SENSOR_LEFT_OFFSET 1000
+	#define LINE_SENSOR_MIDDLE_OFFSET 2000
+	#define LINE_SENSOR_RIGHT_OFFSET 700
+#else
+// Srijan
+#define ENCODER_UPPER_BOUND_RIGHT 2500
+#define ENCODER_LOWER_BOUND_RIGHT 1500
+
+#define ENCODER_UPPER_BOUND_LEFT 3100
+#define ENCODER_LOWER_BOUND_LEFT 2600
+
+#define LINE_SENSOR_BLACK 3000
+
+#define LINE_SENSOR_LEFT_OFFSET 800
+#define LINE_SENSOR_MIDDLE_OFFSET 400
+#define LINE_SENSOR_RIGHT_OFFSET 1400
+
+#define BLACK_THRESHHOLD 1000
+
+//#define LINE_SENSOR_LEFT_OFFSET 700
+//#define LINE_SENSOR_MIDDLE_OFFSET 400
+//#define LINE_SENSOR_RIGHT_OFFSET 1400
+#endif
+
+#define max(a,b) \
+   ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a > _b ? _a : _b; })
+
+typedef enum {
+	LEFT, RIGHT
+} directionEnum;
+
+const int maxSpeed = 65535; // Maximaler PWM-Wert
+const int minSpeed = 0; // Minimaler PWM-Wert
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -47,19 +97,15 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+static int speedLeft = 0;
+static int speedRight = 0;
 
-#define MAX_SPEED 65536
+int EncoderTicksLeft = 0;
+int EncoderTicksRight = 0;
 
-/**
- * Assignment 5 Question 1
- */
-#define SW_HIGH 2500
-#define SW_LOW 2000
+static int EncoderStateLeft = 0;
+static int EncoderStateRight = 0;
 
-int STATE_LEFT = 0;
-int STATE_RIGHT = 0;
-uint64_t numberOfEncoderTicks_LEFT = 0;
-uint64_t numberOfEncoderTicks_RIGHT = 0;
 
 /* USER CODE END PV */
 
@@ -72,208 +118,82 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-/**
- * Assignment 5 Question 1
- */
-void format_encoderValue_to_csv(volatile uint32_t *adc_values, char *buffer,
-		uint16_t *length) {
-	*length = 0;
-	*length += sprintf((char*) (buffer + *length), "%lu,", adc_values[1]);
-	*length += sprintf((char*) (buffer + *length), "%lu\n", adc_values[4]);
-}
+/* Funktionen zur Motoransteuerung (Teilaufgabe 2)
+ *
+ * Separate Funktionen für links und rechts
+ *
+ * Der Parameter speed muss im Bereich -65535 - 65535 liegen.
+ * Negativ = Rückwärts, Positiv = Forwärts
+ *
+ * */
 
-/**
- * Assignment 5 Question 1
- */
-void schmidtTrigger(volatile uint32_t *adc_values) {
-
-	switch (STATE_LEFT) {
-	case 0:
-		if (adc_values[1] >= SW_HIGH) {
-			numberOfEncoderTicks_LEFT++;
-			STATE_LEFT = 1;
-		}
-	default:
-		if (adc_values[1] <= SW_LOW) {
-
-			numberOfEncoderTicks_LEFT++;
-			STATE_LEFT = 0;
-		}
-	}
-
-	switch (STATE_RIGHT) {
-	case 0:
-		if (adc_values[4] >= SW_HIGH) {
-			numberOfEncoderTicks_RIGHT++;
-			STATE_RIGHT = 1;
-		}
-	default:
-		if (adc_values[4] <= SW_LOW) {
-
-			numberOfEncoderTicks_RIGHT++;
-			STATE_RIGHT = 0;
-		}
-	}
-}
-
-void format_adc_to_csv(volatile uint32_t *adc_values, char *buffer,
-		uint16_t *length) {
-	*length = 0;
-	for (int i = 0; i < 6; i++) {
-		if (i > 0) {
-			*length += sprintf((char*) (buffer + *length), ",");
-		}
-		*length += sprintf((char*) (buffer + *length), "%lu", adc_values[i]);
-	}
-	// Add a newline character at the end of the CSV line
-	*length += sprintf((char*) (buffer + *length), "\n");
-}
-
-int checkSpeedBoundary(int speed) {
-	if (speed > MAX_SPEED) {
-		return MAX_SPEED;
-	}else if(speed < - MAX_SPEED){
-		return -MAX_SPEED;
-	}else{
-		return speed;
-	}
-}
-
-void driveLeft(int spd, int direction) {
-	int speed = checkSpeedBoundary(spd);
-	if (speed <= 0) {
-		// stop
-		HAL_GPIO_WritePin(GPIOA, phase2_L_Pin, GPIO_PIN_RESET);
+void setSpeedLeft(int speed) {
+	speedLeft = speed;
+	if (speed == 0) {
+		HAL_GPIO_WritePin(GPIOA, phase2_L_Pin, 0);
 		TIM1->CCR2 = 0;
 		return;
+
+	}
+	if (speed > 0) {
+		HAL_GPIO_WritePin(GPIOA, phase2_L_Pin, 1);
+		TIM1->CCR2 = 65536 - speed;
+		return;
 	}
 
-	if (direction > 0) {
-		//forward
-		HAL_GPIO_WritePin(GPIOA, phase2_L_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIOA, phase2_L_Pin, 0);
+	TIM1->CCR2 = -speed;
+	return;
 
-		TIM1->CCR2 = MAX_SPEED - speed;
-	} else {
-		//reverse
-		HAL_GPIO_WritePin(GPIOA, phase2_L_Pin, GPIO_PIN_RESET);
-		TIM1->CCR2 = speed;
-	}
 }
 
-void driveRight(int speed, int direction) {
-
-	checkSpeedBoundary(speed);
-	if (speed <= 0) {
-		// stop
-		HAL_GPIO_WritePin(GPIOB, phase2_R_Pin, GPIO_PIN_RESET);
-
+void setSpeedRight(int speed) {
+	speedRight = speed;
+	if (speed == 0) {
+		HAL_GPIO_WritePin(GPIOB, phase2_R_Pin, 0);
 		TIM1->CCR3 = 0;
 		return;
+
 	}
-
-	if (direction > 0) {
-		//forward
-		HAL_GPIO_WritePin(GPIOB, phase2_R_Pin, GPIO_PIN_RESET);
-
-		TIM1->CCR3 = speed;
-
-	} else {
-		//reverse
-		HAL_GPIO_WritePin(GPIOB, phase2_R_Pin, GPIO_PIN_SET);
-
-		TIM1->CCR3 = MAX_SPEED - speed;
-	}
-}
-
-void drive(int speed) {
 	if (speed > 0) {
-		driveRight(speed, 1);
-		driveLeft(speed, 1);
-	} else {
-
-		driveRight(-speed, 0);
-		driveLeft(-speed, 0);
-	}
-}
-
-void driveDemo() {
-	//forward
-	int speed = 40000;
-	while (speed > 0) {
-		driveLeft(speed, 1);
-		driveRight(speed, 1);
-		speed -= 10000;
-		HAL_Delay(1000);
-	}
-
-	// backward
-	speed = 40000;
-	while (speed > 0) {
-		driveLeft(speed, 0);
-		driveRight(speed, 0);
-		speed -= 10000;
-		HAL_Delay(1000);
-	}
-
-	// right
-	speed = 40000;
-	while (speed > 0) {
-		driveLeft(speed, 1);
-		speed -= 10000;
-		HAL_Delay(1000);
-	}
-
-	//left
-	speed = 40000;
-	while (speed > 0) {
-		driveRight(speed, 1);
-		speed -= 10000;
-		HAL_Delay(1000);
-	}
-}
-uint64_t startTime = 0;
-void regulateSpeed(int speed, int direction) {
-	int current_time = HAL_GetTick();
-	int t = startTime;
-
-//	if (current_time - t < 500) {
-//		return;
-//	}
-
-	int left = numberOfEncoderTicks_LEFT;
-	int right = numberOfEncoderTicks_RIGHT;
-
-	uint64_t dif = left - right;
-	uint64_t difference = dif / 2;
-
-	if (difference == 0) {
+		HAL_GPIO_WritePin(GPIOB, phase2_R_Pin, 0);
+		TIM1->CCR3 = speed;
 		return;
-	} else if (difference < 0) { // right is faster
-		driveLeft(speed - difference, direction);
-		driveRight(speed + difference, direction);
-	} else { // left is faster
-		driveRight(speed + difference, direction);
-		driveLeft(speed - difference, direction);
 	}
 
-//	uint64_t difference = left - right;
-//	if (difference == 0) {
-//		return;
-//	} else if (difference < 0) { // right is faster
-//		driveLeft(speed - difference * 1100, direction);
-//	} else { // left is faster
-//		driveRight(speed + difference * 1100, direction);
-//	}
+	HAL_GPIO_WritePin(GPIOB, phase2_R_Pin, 1);
+	TIM1->CCR3 = 65536 + speed;
+	return;
 
 }
 
-void driveStraight(int speed, int direction) {
-	drive(speed);
-	startTime = HAL_GetTick();
-	regulateSpeed(speed, direction);
-
+void setSpeed(int speed) {
+	setSpeedLeft(speed);
+	setSpeedRight(speed);
 }
 
+/* Funktion um Motoransteuerungsmethoden zu demonstrieren
+ * */
+void driveDemo() {
+	int speed = 30000;
+
+	while (speed > 0) {
+		setSpeedLeft(speed);
+		setSpeedRight(speed);
+		speed -= 10000;
+		HAL_Delay(1000);
+	}
+	speed = -30000;
+
+	while (speed < 0) {
+		setSpeed_left(speed);
+		setSpeed_right(speed);
+		speed += 10000;
+		HAL_Delay(1000);
+	}
+}
+
+// Aus Übungsblatt 3
 volatile uint32_t adc[6];
 uint32_t buffer[6];
 volatile uint8_t conversion_done_flag = 1;
@@ -284,62 +204,680 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc1) {
 	conversion_done_flag = 1;
 }
 
-/**
- * Assignment 5 Question 4.4
- */
-enum LED_STATE {
-	eStateA, eStateB,
-};
-enum LED_STATE taskLED_state;
-uint64_t taskLED_timeout = 0;
+static uint64_t encoderTimeoutTicks = 0;
+const int encoderDelay = 1;
+void processEncoder() {
 
-void taskLED() {
-	int current_time = HAL_GetTick();
-	switch (taskLED_state) {
-	case eStateA:
-		if (current_time >= taskLED_timeout) {
-			HAL_GPIO_WritePin(GPIOB, LED_right_Pin, GPIO_PIN_RESET);
-			taskLED_timeout = current_time + 500;
-			taskLED_state = eStateB;
+	switch (EncoderStateLeft) {
+	case 0:
+		if (adc[1] >= ENCODER_UPPER_BOUND_LEFT) {
+			EncoderTicksLeft++;
+			EncoderStateLeft = 1;
 		}
 		break;
-	case eStateB:
-		if (current_time >= taskLED_timeout) {
-			HAL_GPIO_WritePin(GPIOB, LED_right_Pin, GPIO_PIN_SET);
-			taskLED_timeout = current_time + 500;
-			taskLED_state = eStateA;
+	case 1:
+		if (adc[1] <= ENCODER_LOWER_BOUND_LEFT) {
+			EncoderTicksLeft++;
+			EncoderStateLeft = 0;
+		}
+		break;
+
+	}
+	switch (EncoderStateRight) {
+	case 0:
+		if (adc[4] >= ENCODER_UPPER_BOUND_RIGHT) {
+			EncoderTicksRight++;
+			EncoderStateRight = 1;
+		}
+		break;
+	case 1:
+		if (adc[4] <= ENCODER_LOWER_BOUND_RIGHT) {
+			EncoderTicksRight++;
+			EncoderStateRight = 0;
 		}
 		break;
 	}
 }
 
-void schmidtToCsv() {
-	if (conversion_done_flag) {
-		conversion_done_flag = 0;
-		HAL_ADC_Start_DMA(&hadc1, buffer, 6);
-	}
-	// into CSV format
-	char string_buf[100];
-	uint16_t len = 0;
-	schmidtTrigger(adc);
-	format_encoderValue_to_csv(adc, string_buf, &len);
+void processEncoderCoop() {
+	uint64_t currentTicks = HAL_GetTick();
+	if (currentTicks - encoderTimeoutTicks < encoderDelay)
+		return;
+	encoderTimeoutTicks = currentTicks;
 
-	HAL_UART_Transmit(&huart2, (uint8_t*) string_buf, len, 1000000);
+	processEncoder();
 }
 
-void adcToCsv() {
-	if (conversion_done_flag) {
-		conversion_done_flag = 0;
-		HAL_ADC_Start_DMA(&hadc1, buffer, 6);
-	}
-	// into CSV format
-	char string_buf[100];
+/* Funktion zur konvertierung von dem adc-Array zum csv-format mit "," als Trennungszeichen
+ * str muss groß genug sein um das gesamte adc-Array zu konvertieren (keine safety checks)
+ * */
+uint16_t adcToCsv(char *str) {
 	uint16_t len = 0;
-	format_adc_to_csv(adc, string_buf, &len);
-	format_encoderValue_to_csv(adc, string_buf, &len);
+	char buf[16];
 
-	HAL_UART_Transmit(&huart2, (uint8_t*) string_buf, len, 1000000);
-	HAL_Delay(50);
+	str[0] = '\0';
+
+	for (int i = 0; i < 6; i++) {
+		len += sprintf((char*) buf, "%d", adc[i]) + 1;
+		strcat(str, buf);
+		strcat(str, ",");
+	}
+
+	str[len - 1] = '\n';
+	return len;
+}
+
+uint16_t EncoderTicksToStr(char *str) {
+	uint16_t len = 0;
+	char buf[50];
+
+	len += sprintf((char*) str, "Left Encoder Ticks: %d, ", EncoderTicksLeft);
+	len += sprintf((char*) buf, "Right Encoder Ticks: %d, ", EncoderTicksRight);
+	strcat(str, buf);
+	len += sprintf((char*) buf, "%d,", EncoderTicksLeft / 24);
+	strcat(str, buf);
+	len += sprintf((char*) buf, "%d", EncoderTicksRight / 24);
+	strcat(str, buf);
+	str[len] = '\n';
+	return len + 1;
+}
+
+uint16_t EncoderToStr(char *str) {
+	uint16_t len = 0;
+	char buf[50];
+
+	len += sprintf((char*) str, "%d,", adc[1]);
+	len += sprintf((char*) buf, "%d", adc[4]);
+	strcat(str, buf);
+	str[len] = '\n';
+	return len + 1;
+}
+
+uint16_t LineSensorToStr(char *str) {
+	uint16_t len = 0;
+	char buf[50];
+
+	len += sprintf((char*) str, "%d, ", adc[5]);
+	len += sprintf((char*) buf, "%d, ", adc[0]);
+	strcat(str, buf);
+	len += sprintf((char*) buf, "%d", adc[2]);
+	strcat(str, buf);
+	str[len] = '\n';
+	return len + 1;
+}
+
+uint16_t LineSensorStateToStr(char *str) {
+	int ileft = adc[5] - LINE_SENSOR_LEFT_OFFSET;
+	int imiddle = adc[0] - LINE_SENSOR_MIDDLE_OFFSET;
+	int iright = adc[2] - LINE_SENSOR_RIGHT_OFFSET;
+
+	char left = ileft < BLACK_THRESHHOLD ? 'w' : 'b';
+	char middle = imiddle < BLACK_THRESHHOLD ? 'w' : 'b';
+	char right = iright < BLACK_THRESHHOLD ? 'w' : 'b';
+
+	uint16_t len = 0;
+	char buf[50];
+
+	len += sprintf((char*) str, "%c, ", left);
+	len += sprintf((char*) buf, "%c, ", middle);
+	strcat(str, buf);
+	len += sprintf((char*) buf, "%c, ", right);
+	strcat(str, buf);
+	len += sprintf((char*) buf, "%d, ", ileft);
+	strcat(str, buf);
+	len += sprintf((char*) buf, "%d, ", imiddle);
+	strcat(str, buf);
+	len += sprintf((char*) buf, "%d", iright);
+	strcat(str, buf);
+	str[len] = '\n';
+	return len + 1;
+
+}
+
+const int equalizerDelay = 5;
+const int tickSpeedRatio = 300;
+const int rightAttenuation = 7; // 65535 pwm = 58 Ticks/s => 1130 pwm = 1 Tick/s
+static uint64_t rightcounter = 0;
+static uint64_t equalizerTimeoutTicks = 0;
+void equalizeEncoderTicks(int speed) {
+
+	int difference = EncoderTicksRight - EncoderTicksLeft;
+	int correction = difference * tickSpeedRatio;
+	// Neue Geschwindigkeiten berechnen
+	int newSpeedLeft = (speed + correction);
+	int newSpeedRight = (speed - correction);
+
+	rightcounter++;
+
+	//EncoderTicksRight -= rightcounter % (rightAttenuation * (int)sqrt(rightcounter))  == 0 ? 1 : 0;
+
+	// Geschwindigkeiten setzen
+	setSpeedLeft(newSpeedLeft);
+	setSpeedRight(newSpeedRight);
+
+}
+
+void equalizeEncoderTicksCoop(int speed) {
+	uint64_t ticks = HAL_GetTick();
+	if (ticks - equalizerTimeoutTicks < equalizerDelay)
+		return;
+	equalizerTimeoutTicks = ticks;
+
+	equalizeEncoderTicks(speed);
+}
+
+static uint64_t straightTimeoutTicks = 0;
+const int straightDelay = 100;
+const float centimetersPerTick = 0.52359f; // 4*PI / 24
+const float millimetersPerTick = 5.2359f;
+
+int checkStraightDistance(int distance) {
+	return (((float) (EncoderTicksRight)) * millimetersPerTick
+			>= (float) distance);
+}
+
+static int executedDriveStraight = 0;
+int driveStraight(int distance, int speed) {
+	if (!executedDriveStraight) {
+		EncoderTicksLeft = 0;
+		EncoderTicksRight = 0;
+		setSpeed(speed);
+		executedDriveStraight = 1;
+	}
+
+//	equalizeEncoderTicks(speed);
+
+	if (!checkStraightDistance(distance))
+		return 0;
+
+	setSpeed(0);
+	return 1;
+}
+
+int driveStraightCoop(int distance, int speed) {
+	uint64_t ticks = HAL_GetTick();
+	if (ticks - straightTimeoutTicks < straightDelay)
+		return 0;
+	straightTimeoutTicks = ticks;
+
+	return driveStraight(distance, speed);
+
+}
+
+const float degreesPerTick = 7.7922; //with wheel Distance of 7.7cm
+const float attenuation = 1.f;
+const float tolerance = 0.5f;
+int checkTurningAngle(int ticksPerTurn, int leftBias, int rightBias) {
+//	int done = 0;
+//	if (EncoderTicksLeft >= ticksPerTurn + leftBias)
+//	{
+//		setSpeedLeft(0);
+//		done++;
+//	}
+	if (EncoderTicksRight >= ticksPerTurn + rightBias) {
+		setSpeed(0);
+		return 1;
+	}
+	return 0;
+}
+
+uint64_t turnTimeoutTicks = 0;
+int turnDelay = 20;
+int stopEncoder = 0;
+
+static int executedTurnDegrees = 0;
+
+int turnDegrees(float degrees, int leftBias, int rightBias,
+		directionEnum direction, int speed) {
+	static int ticksPerTurn = 0;
+
+	if (!executedTurnDegrees) {
+		EncoderTicksLeft = 0;
+		EncoderTicksRight = 0;
+		switch (direction) {
+		case LEFT: {
+
+			setSpeedLeft(-speed);
+			setSpeedRight(speed);
+
+		}
+			break;
+		case RIGHT: {
+
+			setSpeedLeft(speed);
+			setSpeedRight(-speed);
+
+		}
+			break;
+		}
+
+		ticksPerTurn = (int) ceil(degrees / degreesPerTick);
+		executedTurnDegrees = 1;
+	}
+
+	if (!checkTurningAngle(ticksPerTurn, leftBias, rightBias))
+		return 0;
+
+	setSpeed(0);
+	return 1;
+}
+
+int turnDegreesCoop(float degrees, int leftBias, int rightBias,
+		directionEnum direction, int speed) {
+	uint64_t ticks = HAL_GetTick();
+	if (ticks - turnTimeoutTicks < turnDelay)
+		return 0;
+	turnTimeoutTicks = ticks;
+
+	return turnDegrees(degrees, leftBias, rightBias, direction, speed);
+}
+
+static int ticksToTurn = 0;
+static int executedTurnDegreesSingle = 0;
+int turnDegreesSingle(float degrees, int leftBias, int rightBias,
+		directionEnum direction, int speed) {
+	uint64_t ticks = HAL_GetTick();
+	if (ticks - turnTimeoutTicks < turnDelay)
+		return 0;
+	turnTimeoutTicks = ticks;
+
+	if (!executedTurnDegreesSingle) {
+		EncoderTicksLeft = 0;
+		EncoderTicksRight = 0;
+		switch (direction) {
+		case LEFT: {
+
+			setSpeedRight(speed);
+
+		}
+			break;
+		case RIGHT: {
+
+			setSpeedLeft(speed);
+		}
+			break;
+		}
+
+		ticksToTurn = 2 * (int) ceil(degrees / degreesPerTick);
+		executedTurnDegreesSingle = 1;
+	}
+
+	if ((EncoderTicksLeft >= ticksToTurn + leftBias)
+			|| (EncoderTicksRight >= ticksToTurn + rightBias)) {
+		setSpeed(0);
+		executedTurnDegreesSingle = 0;
+
+		return 1;
+	}
+	return 0;
+
+}
+
+int drivePreprogrammedRouteCoop(int speed) {
+	static int step = 1;
+	switch (step) {
+	case 1:
+		if (!driveStraightCoop(340, speed))
+			return 0;
+		step++;
+		executedDriveStraight = 0;
+		break;
+	case 2:
+		if (!turnDegreesCoop(90.f, 1, 2, LEFT, speed))
+			return 0;
+		step++;
+		executedTurnDegrees = 0;
+		break;
+	case 3:
+		if (!driveStraightCoop(662, speed))
+			return 0;
+		step++;
+		executedDriveStraight = 0;
+		break;
+	case 4:
+		if (!turnDegreesCoop(145.f, 2, 0, RIGHT, speed))
+			return 0;
+		step++;
+		executedTurnDegrees = 0;
+		break;
+	case 5:
+		if (!driveStraightCoop(520, speed))
+			return 0;
+		step++;
+		executedDriveStraight = 0;
+		break;
+	case 6:
+		return 1;
+		break;
+	}
+	return 0;
+}
+
+int isOnLine() {
+	int left = adc[5] - LINE_SENSOR_LEFT_OFFSET;
+	int middle = adc[0] - LINE_SENSOR_MIDDLE_OFFSET;
+	int right = adc[2] - LINE_SENSOR_RIGHT_OFFSET;
+
+	int leftState = left < BLACK_THRESHHOLD;
+	int middleState = middle < BLACK_THRESHHOLD;
+	int rightState = right < BLACK_THRESHHOLD;
+
+	return !(leftState && middleState && rightState);
+}
+
+// returns 0 when no line was found and 1 if otherwise
+
+const float kp = 6;
+const float ki = 0;
+const float kd = 0;
+int prevErrors[ERROR_SIZE] = { 0 };
+int onlyMiddles[ERROR_SIZE] = { 0 };
+static int prevMiddleCount = 0;
+static int previError = 0;
+static int errorIdx = 0;
+static int errorThresh = 3000;
+
+int followLine(int speed) {
+	int left = adc[5] - LINE_SENSOR_LEFT_OFFSET;
+	int middle = adc[0] - LINE_SENSOR_MIDDLE_OFFSET;
+	int right = adc[2] - LINE_SENSOR_RIGHT_OFFSET;
+
+	int leftState = left < BLACK_THRESHHOLD;
+	int middleState = middle < BLACK_THRESHHOLD;
+	int rightState = right < BLACK_THRESHHOLD;
+
+	if (leftState && middleState && rightState && (errorIdx == 0))
+		return 0;
+
+	// Falls alle Werte ~ 0 sind, dann findTrack()
+
+	int pError = left - right;
+
+	// Integral error calculation
+	int iError = previError + pError - prevErrors[errorIdx];
+
+	// Update the previous error
+	previError = iError;
+
+	// Store the current proportional error
+	prevErrors[errorIdx] = pError;
+
+	int currentMiddle = (!middleState && leftState && rightState);
+	prevMiddleCount = prevMiddleCount - onlyMiddles[errorIdx] + currentMiddle;
+	onlyMiddles[errorIdx] = currentMiddle;
+
+	// Update the error index using modulo to wrap around
+	errorIdx = (errorIdx + 1) % ERROR_SIZE;
+
+	// Derivative error calculation
+	int prevErrorIdx = (errorIdx == 0) ? (ERROR_SIZE - 1) : (errorIdx - 1);
+	int dError = pError - prevErrors[prevErrorIdx];
+
+	// Calculate the correction
+	int correction = (int) (kp * (float) pError) + (int) (ki * (float) iError)
+			+ (int) (kd * (float) dError);
+
+	// Set motor speeds
+	if (pError >= errorThresh) {
+		setSpeedLeft(0);
+		setSpeedRight(speed + correction);
+	} else if (pError <= -errorThresh) {
+		setSpeedLeft(speed - correction);
+		setSpeedRight(0);
+
+	} else {
+		setSpeedLeft(speed - correction);
+		setSpeedRight(speed + correction);
+	}
+
+	return 1;
+}
+
+static int searchState = 0;
+static directionEnum firstDirection = RIGHT;
+const int middleThresh = 3;
+int searchLine(int speed) {
+
+	switch (searchState) {
+	case 0:
+		setSpeed(0);
+		if (prevMiddleCount > middleThresh) {
+			searchState = 5;
+			break;
+		}
+
+		firstDirection = previError > 0 ? LEFT : RIGHT;
+		searchState = 1;
+		break;
+	case 1:
+
+		if (!turnDegreesSingle(100.f, 0, 0, firstDirection, speed)) {
+			if (isOnLine()) {
+
+				setSpeed(0);
+				executedTurnDegreesSingle = 0;
+				return 1;
+			}
+			return 0;
+		}
+		searchState++;
+
+		break;
+	case 2:
+
+		if (!turnDegreesSingle(100.f, 0, 0, firstDirection, -speed)) {
+			return 0;
+		}
+		searchState++;
+		break;
+	case 3:
+
+		if (!turnDegreesSingle(100.f, 0, 0, (firstDirection + 1) % 2, speed)) {
+			if (isOnLine()) {
+
+				setSpeed(0);
+				executedTurnDegreesSingle = 0;
+				return 1;
+			}
+			return 0;
+		}
+		searchState++;
+
+		break;
+	case 4:
+
+		if (!turnDegreesSingle(100.f, 0, 0, (firstDirection + 1) % 2, -speed)) {
+			return 0;
+		}
+		searchState++;
+		break;
+
+	case 5:
+		if (!driveStraight(100, speed)) {
+			if (isOnLine()) {
+
+				setSpeed(0);
+				executedDriveStraight = 0;
+				return 1;
+			}
+			return 0;
+		}
+		executedDriveStraight = 0;
+		searchState++;
+		break;
+	default:
+		return 1;
+	}
+	return 0;
+}
+
+int touchesSensor() {
+	if (!HAL_GPIO_ReadPin(GPIOA, switch_left_Pin))
+		return 1;
+	if (!HAL_GPIO_ReadPin(GPIOA, switch_middle_Pin))
+		return 1;
+	if (!HAL_GPIO_ReadPin(GPIOA, switch_right_Pin))
+		return 0;
+	else
+		return 2;
+}
+
+static int avoidState = 0;
+int avoidObstacle(directionEnum direction, int speed) {
+
+	switch (avoidState) {
+	case 0:
+		if (!driveStraight(10, -speed)) {
+			return 0;
+		}
+		executedDriveStraight = 0;
+		avoidState++;
+		break;
+	case 1:
+		if (!turnDegrees(45.f, 0, 0, direction, speed)) {
+			return 0;
+		}
+		executedTurnDegrees = 0;
+		avoidState++;
+		break;
+	case 2:
+		if (!driveStraight(140, speed)) {
+			return 0;
+		}
+		executedDriveStraight = 0;
+		avoidState++;
+		break;
+	case 3:
+		if (!turnDegrees(90.f, 0, 0, (direction + 1) % 2, speed)) {
+			return 0;
+		}
+		executedTurnDegrees = 0;
+		avoidState++;
+		break;
+	case 4:
+		if (!driveStraight(200, speed)) {
+			if (isOnLine()) {
+				setSpeed(0);
+				executedDriveStraight = 0;
+				return 1;
+			}
+			return 0;
+		}
+		executedDriveStraight = 0;
+		avoidState++;
+		break;
+
+	case 5:
+		return 1;
+	}
+	return 0;
+}
+
+uint64_t followTimeoutTicks = 0;
+int followDelay = 5;
+void followLineCoop(int speed) {
+	uint64_t ticks = HAL_GetTick();
+	if (ticks - followTimeoutTicks < followDelay)
+		return;
+	turnTimeoutTicks = ticks;
+	followLine(speed);
+
+}
+
+void taskFollowLine(int speed) {
+	static int followState = 0;
+
+	int touchState = touchesSensor();
+	static directionEnum direction = LEFT;
+	if (touchState != 2) {
+		followState = 2;
+		direction = touchState;
+
+	}
+	switch (followState) {
+	case 0:
+		if (!followLine(speed))
+			followState++;
+		break;
+	case 1:
+		if (searchLine(speed) == 0)
+			break;
+		else {
+			followState = 0;
+			searchState = 0;
+		}
+		break;
+	case 2:
+		if (!avoidObstacle(direction, speed))
+			break;
+		followState = 0;
+		avoidState = 0;
+		break;
+	}
+}
+
+static int courseState = 0;
+void driveCourse() {
+
+	switch (courseState) {
+	case 0:
+		if (!drivePreprogrammedRouteCoop(40000))
+			break;
+		courseState++;
+		break;
+	case 1:
+		taskFollowLine(40000);
+		break;
+	}
+
+}
+
+void task1() {
+	processEncoder();
+	setSpeed(30000);
+	//driveStraightCoop(8000, 40000);
+	char sendbuf[500];
+	uint16_t size = EncoderToStr(sendbuf);
+
+	HAL_UART_Transmit(&huart2, (uint8_t*) sendbuf, size, 10000);
+	HAL_Delay(2);
+//	processEncoder();
+//	taskFollowLine(40000);
+//	HAL_GPIO_WritePin(GPIOB, LED_left_Pin, isOnLine());
+////	HAL_GPIO_WritePin(GPIOB, LED_left_Pin, isOnLine());
+
+}
+
+void task2() {
+//	char sendbuf[500];
+//	uint16_t size = LineSensorToStr(sendbuf);
+//
+//	HAL_UART_Transmit(&huart2, (uint8_t*)sendbuf, size, 10000);
+//	HAL_Delay(5);
+	processEncoder();
+//	taskFollowLine(40000);
+	driveCourse();
+	HAL_GPIO_WritePin(GPIOB, LED_left_Pin, isOnLine());
+//
+//	char sendbuf[500];
+//	uint16_t size = EncoderTicksToStr(sendbuf);
+//
+//	HAL_UART_Transmit(&huart2, (uint8_t*)sendbuf, size, 10000);
+	//searchLine(30000);
+}
+
+void task3() {
+
+	while (!turnDegreesSingle(100.f, 0, 0, RIGHT, 30000)) {
+		processEncoder();
+	}
+
+	HAL_GPIO_WritePin(GPIOB, LED_left_Pin, 1);
+
+	//HAL_Delay(5);
+	//processEncoder();
+	//drivePreprogrammedRouteCoop();
+
 }
 
 /* USER CODE END 0 */
@@ -349,6 +887,7 @@ void adcToCsv() {
  * @retval int
  */
 int main(void) {
+
 	/* USER CODE BEGIN 1 */
 
 	/* USER CODE END 1 */
@@ -376,42 +915,62 @@ int main(void) {
 	MX_ADC1_Init();
 	MX_TIM1_Init();
 	/* USER CODE BEGIN 2 */
-
 	HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_2);
 	HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_3);
 
-//	Assignment 5 Question 1
-	HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED);
+	//HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED);
 
-// 	Assignment 5 Question 4.4
-// 	init taskLED_timeout and taskLED_state
-	taskLED_state = eStateA;
-	taskLED_timeout = HAL_GetTick() + 500;
-
-	drive(MAX_SPEED / 2);
-
+	//setSpeedLeft(40000);
+	//setSpeedRight(40000);
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
-	while (1) {
+	void (*taskPtr)(void) = 0;
 
-		//Assignment 4 Question 2.3
-//		driveDemo();
+	while (1) {
+		if (!HAL_GPIO_ReadPin(GPIOA, switch_left_Pin)) {
+			taskPtr = &task1;
+			break;
+		}
+		if (!HAL_GPIO_ReadPin(GPIOA, switch_middle_Pin)) {
+			taskPtr = &task2;
+			break;
+		}
+		if (!HAL_GPIO_ReadPin(GPIOA, switch_right_Pin)) {
+			taskPtr = &task3;
+			break;
+		}
+
+	}
+	HAL_Delay(2000);
+	while (1) {
 
 		/* USER CODE END WHILE */
 
 		/* USER CODE BEGIN 3 */
 
-//// 	Assignment 5 Question 4.4
-//		taskLED();
-		schmidtToCsv();
-		startTime = HAL_GetTick();
-		regulateSpeed(MAX_SPEED / 2, 1);
+		if (conversion_done_flag) {
+			conversion_done_flag = 0;
+			HAL_ADC_Start_DMA(&hadc1, buffer, 6);
+		}
 
-//		return 0;
+		taskPtr();
+
+		//turnDegreesCoop(90.f,0,0, LEFT, 40000);
+
+		//equalizeEncoderTicksCoop(30000);
+
+//	char sendbuf[500];
+//	uint16_t size = EncoderTicksToStr(sendbuf);
+//
+//	HAL_UART_Transmit(&huart2, (uint8_t*)sendbuf, size, 10000);
+		//HAL_Delay(5);
+
+		//taskLED();
+		//HAL_GPIO_WritePin(GPIOB, LED_left_Pin, taskLED_state);
+
 	}
-
 	/* USER CODE END 3 */
 }
 
