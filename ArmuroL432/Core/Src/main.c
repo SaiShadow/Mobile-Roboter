@@ -41,6 +41,9 @@
 /* USER CODE BEGIN PD */
 #define ERROR_SIZE 10
 
+#define BLACK_THRESHHOLD 1000
+
+
 #define MS 1
 
 #if MS == 0
@@ -65,15 +68,15 @@
 
 #define LINE_SENSOR_BLACK 3000
 
-#define LINE_SENSOR_LEFT_OFFSET 800
-#define LINE_SENSOR_MIDDLE_OFFSET 400
-#define LINE_SENSOR_RIGHT_OFFSET 1400
-
-#define BLACK_THRESHHOLD 1000
-
-//#define LINE_SENSOR_LEFT_OFFSET 700
+// Values at home
+//#define LINE_SENSOR_LEFT_OFFSET 800
 //#define LINE_SENSOR_MIDDLE_OFFSET 400
 //#define LINE_SENSOR_RIGHT_OFFSET 1400
+
+
+#define LINE_SENSOR_LEFT_OFFSET 900
+#define LINE_SENSOR_MIDDLE_OFFSET 400
+#define LINE_SENSOR_RIGHT_OFFSET 1500
 #endif
 
 #define max(a,b) \
@@ -567,7 +570,7 @@ int isOnLine() {
 
 // returns 0 when no line was found and 1 if otherwise
 
-const float kp = 6;
+const float kp = 1/2;
 const float ki = 0;
 const float kd = 0;
 int prevErrors[ERROR_SIZE] = { 0 };
@@ -575,7 +578,7 @@ int onlyMiddles[ERROR_SIZE] = { 0 };
 static int prevMiddleCount = 0;
 static int previError = 0;
 static int errorIdx = 0;
-static int errorThresh = 3000;
+static int errorThresh = 1500;
 
 int followLine(int speed) {
 	int left = adc[5] - LINE_SENSOR_LEFT_OFFSET;
@@ -741,14 +744,14 @@ int avoidObstacle(directionEnum direction, int speed) {
 		avoidState++;
 		break;
 	case 2:
-		if (!driveStraight(140, speed)) {
+		if (!driveStraight(150, speed)) {
 			return 0;
 		}
 		executedDriveStraight = 0;
 		avoidState++;
 		break;
 	case 3:
-		if (!turnDegrees(90.f, 0, 0, (direction + 1) % 2, speed)) {
+		if (!turnDegrees(100.f, 0, 0, (direction + 1) % 2, speed)) {
 			return 0;
 		}
 		executedTurnDegrees = 0;
@@ -817,7 +820,7 @@ void taskFollowLine(int speed) {
 }
 
 static int courseState = 0;
-void driveCourse() {
+void driveCourse(int speed) {
 
 	switch (courseState) {
 	case 0:
@@ -826,7 +829,7 @@ void driveCourse() {
 		courseState++;
 		break;
 	case 1:
-		taskFollowLine(40000);
+		taskFollowLine(speed);
 		break;
 	}
 
@@ -855,8 +858,8 @@ void task2() {
 //	HAL_UART_Transmit(&huart2, (uint8_t*)sendbuf, size, 10000);
 //	HAL_Delay(5);
 	processEncoder();
-//	taskFollowLine(40000);
-	driveCourse();
+//	taskFollowLine(60000);
+	driveCourse(60000);
 	HAL_GPIO_WritePin(GPIOB, LED_left_Pin, isOnLine());
 //
 //	char sendbuf[500];
@@ -868,15 +871,10 @@ void task2() {
 
 void task3() {
 
-	while (!turnDegreesSingle(100.f, 0, 0, RIGHT, 30000)) {
-		processEncoder();
-	}
-
-	HAL_GPIO_WritePin(GPIOB, LED_left_Pin, 1);
-
-	//HAL_Delay(5);
-	//processEncoder();
-	//drivePreprogrammedRouteCoop();
+	processEncoder();
+	taskFollowLine(60000);
+//	driveCourse(60000);
+	HAL_GPIO_WritePin(GPIOB, LED_left_Pin, isOnLine());
 
 }
 
