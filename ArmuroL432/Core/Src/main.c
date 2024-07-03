@@ -41,6 +41,9 @@
 /* USER CODE BEGIN PD */
 #define ERROR_SIZE 10
 
+#define BLACK_THRESHHOLD 1000
+
+
 #define MS 1
 
 #if MS == 0
@@ -65,15 +68,15 @@
 
 #define LINE_SENSOR_BLACK 3000
 
-#define LINE_SENSOR_LEFT_OFFSET 800
-#define LINE_SENSOR_MIDDLE_OFFSET 400
-#define LINE_SENSOR_RIGHT_OFFSET 1400
-
-#define BLACK_THRESHHOLD 1000
-
-//#define LINE_SENSOR_LEFT_OFFSET 700
+// Values at home
+//#define LINE_SENSOR_LEFT_OFFSET 800
 //#define LINE_SENSOR_MIDDLE_OFFSET 400
 //#define LINE_SENSOR_RIGHT_OFFSET 1400
+
+
+#define LINE_SENSOR_LEFT_OFFSET 900
+#define LINE_SENSOR_MIDDLE_OFFSET 400
+#define LINE_SENSOR_RIGHT_OFFSET 1500
 #endif
 
 #define max(a,b) \
@@ -567,7 +570,7 @@ int isOnLine() {
 
 // returns 0 when no line was found and 1 if otherwise
 
-const float kp = 6;
+const float kp = 8;
 const float ki = 0;
 const float kd = 0;
 int prevErrors[ERROR_SIZE] = { 0 };
