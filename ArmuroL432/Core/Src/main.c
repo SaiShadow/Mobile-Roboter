@@ -41,22 +41,9 @@
 /* USER CODE BEGIN PD */
 #define ERROR_SIZE 10
 
-#define MS 1
+#define BLACK_THRESHHOLD 1000
 
-#if MS == 0
-	#define ENCODER_UPPER_BOUND_RIGHT 2500
-	#define ENCODER_LOWER_BOUND_RIGHT 1500
 
-	#define ENCODER_UPPER_BOUND_LEFT 2500
-	#define ENCODER_LOWER_BOUND_LEFT 500
-
-	#define LINE_SENSOR_BLACK 3000
-
-	#define LINE_SENSOR_LEFT_OFFSET 1000
-	#define LINE_SENSOR_MIDDLE_OFFSET 2000
-	#define LINE_SENSOR_RIGHT_OFFSET 700
-#else
-// Srijan
 #define ENCODER_UPPER_BOUND_RIGHT 2500
 #define ENCODER_LOWER_BOUND_RIGHT 1500
 
@@ -65,16 +52,15 @@
 
 #define LINE_SENSOR_BLACK 3000
 
-#define LINE_SENSOR_LEFT_OFFSET 800
-#define LINE_SENSOR_MIDDLE_OFFSET 400
-#define LINE_SENSOR_RIGHT_OFFSET 1400
-
-#define BLACK_THRESHHOLD 1000
-
-//#define LINE_SENSOR_LEFT_OFFSET 700
+// Values at home
+//#define LINE_SENSOR_LEFT_OFFSET 800
 //#define LINE_SENSOR_MIDDLE_OFFSET 400
 //#define LINE_SENSOR_RIGHT_OFFSET 1400
-#endif
+
+
+#define LINE_SENSOR_LEFT_OFFSET 900
+#define LINE_SENSOR_MIDDLE_OFFSET 400
+#define LINE_SENSOR_RIGHT_OFFSET 1500
 
 #define max(a,b) \
    ({ __typeof__ (a) _a = (a); \
@@ -517,31 +503,31 @@ int drivePreprogrammedRouteCoop(int speed) {
 	static int step = 1;
 	switch (step) {
 	case 1:
-		if (!driveStraightCoop(340, speed))
+		if (!driveStraightCoop(500, speed))
 			return 0;
 		step++;
 		executedDriveStraight = 0;
 		break;
 	case 2:
-		if (!turnDegreesCoop(90.f, 1, 2, LEFT, speed))
+		if (!turnDegreesCoop(120.f, 0, 0, RIGHT, speed))
 			return 0;
 		step++;
 		executedTurnDegrees = 0;
 		break;
 	case 3:
-		if (!driveStraightCoop(662, speed))
+		if (!driveStraightCoop(443, speed))
 			return 0;
 		step++;
 		executedDriveStraight = 0;
 		break;
 	case 4:
-		if (!turnDegreesCoop(145.f, 2, 0, RIGHT, speed))
+		if (!turnDegreesCoop(110.f, 0, 0, LEFT, speed))
 			return 0;
 		step++;
 		executedTurnDegrees = 0;
 		break;
 	case 5:
-		if (!driveStraightCoop(520, speed))
+		if (!driveStraightCoop(245, speed))
 			return 0;
 		step++;
 		executedDriveStraight = 0;
@@ -567,7 +553,7 @@ int isOnLine() {
 
 // returns 0 when no line was found and 1 if otherwise
 
-const float kp = 6;
+const float kp = 1/2;
 const float ki = 0;
 const float kd = 0;
 int prevErrors[ERROR_SIZE] = { 0 };
@@ -575,7 +561,7 @@ int onlyMiddles[ERROR_SIZE] = { 0 };
 static int prevMiddleCount = 0;
 static int previError = 0;
 static int errorIdx = 0;
-static int errorThresh = 3000;
+static int errorThresh = 1500;
 
 int followLine(int speed) {
 	int left = adc[5] - LINE_SENSOR_LEFT_OFFSET;
@@ -715,7 +701,7 @@ int touchesSensor() {
 	if (!HAL_GPIO_ReadPin(GPIOA, switch_left_Pin))
 		return 1;
 	if (!HAL_GPIO_ReadPin(GPIOA, switch_middle_Pin))
-		return 1;
+		return 0;
 	if (!HAL_GPIO_ReadPin(GPIOA, switch_right_Pin))
 		return 0;
 	else
@@ -724,7 +710,7 @@ int touchesSensor() {
 
 static int avoidState = 0;
 int avoidObstacle(directionEnum direction, int speed) {
-
+int turnSpeed = 50000;
 	switch (avoidState) {
 	case 0:
 		if (!driveStraight(10, -speed)) {
@@ -734,27 +720,43 @@ int avoidObstacle(directionEnum direction, int speed) {
 		avoidState++;
 		break;
 	case 1:
-		if (!turnDegrees(45.f, 0, 0, direction, speed)) {
+		if (!turnDegrees(50.f, 0, 0, direction, turnSpeed)) {
 			return 0;
 		}
 		executedTurnDegrees = 0;
 		avoidState++;
 		break;
 	case 2:
-		if (!driveStraight(140, speed)) {
+		if (!driveStraight(160, speed)) {
 			return 0;
 		}
 		executedDriveStraight = 0;
 		avoidState++;
 		break;
 	case 3:
-		if (!turnDegrees(90.f, 0, 0, (direction + 1) % 2, speed)) {
+		if (!turnDegrees(50.f, 0, 0, (direction + 1) % 2, turnSpeed)) {
 			return 0;
 		}
 		executedTurnDegrees = 0;
 		avoidState++;
 		break;
 	case 4:
+		if (!driveStraight(100, speed)) {
+			return 0;
+		}
+		executedDriveStraight = 0;
+		avoidState++;
+		break;
+
+	case 5:
+		if (!turnDegrees(50.f, 0, 0, (direction + 1) % 2, turnSpeed)) {
+			return 0;
+		}
+		executedTurnDegrees = 0;
+		avoidState++;
+		break;
+
+	case 6:
 		if (!driveStraight(200, speed)) {
 			if (isOnLine()) {
 				setSpeed(0);
@@ -766,8 +768,7 @@ int avoidObstacle(directionEnum direction, int speed) {
 		executedDriveStraight = 0;
 		avoidState++;
 		break;
-
-	case 5:
+	case 7:
 		return 1;
 	}
 	return 0;
@@ -817,7 +818,7 @@ void taskFollowLine(int speed) {
 }
 
 static int courseState = 0;
-void driveCourse() {
+void driveCourse(int speed) {
 
 	switch (courseState) {
 	case 0:
@@ -826,7 +827,7 @@ void driveCourse() {
 		courseState++;
 		break;
 	case 1:
-		taskFollowLine(40000);
+		taskFollowLine(speed);
 		break;
 	}
 
@@ -855,8 +856,8 @@ void task2() {
 //	HAL_UART_Transmit(&huart2, (uint8_t*)sendbuf, size, 10000);
 //	HAL_Delay(5);
 	processEncoder();
-//	taskFollowLine(40000);
-	driveCourse();
+//	taskFollowLine(60000);
+	driveCourse(60000);
 	HAL_GPIO_WritePin(GPIOB, LED_left_Pin, isOnLine());
 //
 //	char sendbuf[500];
@@ -868,15 +869,10 @@ void task2() {
 
 void task3() {
 
-	while (!turnDegreesSingle(100.f, 0, 0, RIGHT, 30000)) {
-		processEncoder();
-	}
-
-	HAL_GPIO_WritePin(GPIOB, LED_left_Pin, 1);
-
-	//HAL_Delay(5);
-	//processEncoder();
-	//drivePreprogrammedRouteCoop();
+	processEncoder();
+	taskFollowLine(60000);
+//	driveCourse(60000);
+	HAL_GPIO_WritePin(GPIOB, LED_left_Pin, isOnLine());
 
 }
 
