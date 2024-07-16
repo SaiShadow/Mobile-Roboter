@@ -41,7 +41,7 @@
 /* USER CODE BEGIN PD */
 #define ERROR_SIZE 10
 
-#define BLACK_THRESHHOLD 1000
+#define BLACK_THRESHOLD 1000
 
 
 #define ENCODER_UPPER_BOUND_RIGHT 2500
@@ -63,7 +63,7 @@
 
 #define MAX_SPEED 65536
 
-#define max(a, b) \
+#define max(a,b) \
    ({ __typeof__ (a) _a = (a); \
        __typeof__ (b) _b = (b); \
      _a > _b ? _a : _b; })
@@ -165,9 +165,9 @@ int isOnLine() {
     int middle = adc[0] - LINE_SENSOR_MIDDLE_OFFSET;
     int right = adc[2] - LINE_SENSOR_RIGHT_OFFSET;
 
-    int leftState = left < BLACK_THRESHHOLD;
-    int middleState = middle < BLACK_THRESHHOLD;
-    int rightState = right < BLACK_THRESHHOLD;
+    int leftState = left < BLACK_THRESHOLD;
+    int middleState = middle < BLACK_THRESHOLD;
+    int rightState = right < BLACK_THRESHOLD;
 
     return !(leftState && middleState && rightState);
 }
@@ -185,7 +185,7 @@ uint16_t adcToCsv(char *str) {
     str[0] = '\0';
 
     for (int i = 0; i < 6; i++) {
-        len += sprintf((char *) buf, "%d", adc[i]) + 1;
+        len += sprintf((char *) buf, "%lu", adc[i]) + 1;
         strcat(str, buf);
         strcat(str, ",");
     }
@@ -223,8 +223,8 @@ uint16_t EncoderToString(char *str) {
     uint16_t len = 0;
     char buf[50];
 
-    len += sprintf((char *) str, "%d,", adc[1]);
-    len += sprintf((char *) buf, "%d", adc[4]);
+    len += sprintf((char *) str, "%lu,", adc[1]);
+    len += sprintf((char *) buf, "%lu", adc[4]);
     strcat(str, buf);
     str[len] = '\n';
     return len + 1;
@@ -239,10 +239,10 @@ uint16_t LineSensorToString(char *str) {
     uint16_t len = 0;
     char buf[50];
 
-    len += sprintf((char *) str, "%d, ", adc[5]);
-    len += sprintf((char *) buf, "%d, ", adc[0]);
+    len += sprintf((char *) str, "%lu, ", adc[5]);
+    len += sprintf((char *) buf, "%lu, ", adc[0]);
     strcat(str, buf);
-    len += sprintf((char *) buf, "%d", adc[2]);
+    len += sprintf((char *) buf, "%lu", adc[2]);
     strcat(str, buf);
     str[len] = '\n';
     return len + 1;
@@ -258,9 +258,9 @@ uint16_t LineSensorStateToString(char *str) {
     int imiddle = adc[0] - LINE_SENSOR_MIDDLE_OFFSET;
     int iright = adc[2] - LINE_SENSOR_RIGHT_OFFSET;
 
-    char left = ileft < BLACK_THRESHHOLD ? 'w' : 'b';
-    char middle = imiddle < BLACK_THRESHHOLD ? 'w' : 'b';
-    char right = iright < BLACK_THRESHHOLD ? 'w' : 'b';
+    char left = ileft < BLACK_THRESHOLD ? 'w' : 'b';
+    char middle = imiddle < BLACK_THRESHOLD ? 'w' : 'b';
+    char right = iright < BLACK_THRESHOLD ? 'w' : 'b';
 
     uint16_t len = 0;
     char buf[50];
@@ -638,9 +638,9 @@ int followLine(int speed) {
     int middle = adc[0] - LINE_SENSOR_MIDDLE_OFFSET;
     int right = adc[2] - LINE_SENSOR_RIGHT_OFFSET;
 
-    int leftState = left < BLACK_THRESHHOLD;
-    int middleState = middle < BLACK_THRESHHOLD;
-    int rightState = right < BLACK_THRESHHOLD;
+    int leftState = left < BLACK_THRESHOLD;
+    int middleState = middle < BLACK_THRESHOLD;
+    int rightState = right < BLACK_THRESHOLD;
 
     if (leftState && middleState && rightState && (errorIdx == 0))
         return 0;
@@ -894,6 +894,7 @@ void taskFollowLine(int speed) {
     }
 }
 
+
 /**
  *
  * @param speed
@@ -919,7 +920,7 @@ void leftButton() {
     processEncoderTicks();
     setSpeed(30000);
     char sendbuf[500];
-    uint16_t size = EncoderToStr(sendbuf);
+    uint16_t size = EncoderToString(sendbuf);
     HAL_UART_Transmit(&huart2, (uint8_t *) sendbuf, size, 10000);
     HAL_Delay(2);
 }
@@ -980,10 +981,10 @@ int main(void) {
     HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_2);
     HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_3);
 
-    //HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED);
-
-    //setSpeedLeft(40000);
-    //setSpeedRight(40000);
+////    HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED);
+//
+//    setSpeedLeft(40000);
+//    setSpeedRight(40000);
 
     /* USER CODE END 2 */
 
@@ -1005,7 +1006,7 @@ int main(void) {
             break;
         }
     }
-    HAL_Delay(20000);
+    HAL_Delay(1500);
     while (1) {
 
         /* USER CODE END WHILE */
