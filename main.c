@@ -61,16 +61,16 @@
 #define LINE_SENSOR_MIDDLE_OFFSET 400
 #define LINE_SENSOR_RIGHT_OFFSET 1500
 
-#define MAX_SPEED 65536
+#define MAX_SPEED 65536 // = 2^16
 
-#define max(a,b) \
+#define max(a, b) \
    ({ __typeof__ (a) _a = (a); \
        __typeof__ (b) _b = (b); \
      _a > _b ? _a : _b; })
 
 typedef enum {
     LEFT, RIGHT
-} directionEnum;
+} directionEnum; // represents direction
 
 /* USER CODE END PD */
 
@@ -101,7 +101,7 @@ volatile uint8_t conversion_done_flag = 1;
 const int equalizerDelay = 5;
 const int tickSpeedRatio = 300;
 const int rightAttenuation = 7; // 65535 pwm = 58 Ticks/s => 1130 pwm = 1 Tick/s
-static uint64_t rightcounter = 0;
+static uint64_t rightCounter = 0;
 static uint64_t equalizerTimeoutTicks = 0;
 
 static uint64_t straightTimeoutTicks = 0;
@@ -157,8 +157,9 @@ void SystemClock_Config(void);
 /* USER CODE BEGIN 0 */
 
 /**
+ * Checks if robot is on line, that is if any sensor sees the line.
  *
- * @return
+ * @return 1 if robot is on line otherwise 0.
  */
 int isOnLine() {
     int left = adc[5] - LINE_SENSOR_LEFT_OFFSET;
@@ -169,35 +170,34 @@ int isOnLine() {
     int middleState = middle < BLACK_THRESHOLD;
     int rightState = right < BLACK_THRESHOLD;
 
+    // if no sensor sees the line then return 0.
     return !(leftState && middleState && rightState);
 }
 
 /**
- * Funktion zur konvertierung von dem adc-Array zum csv-format mit "," als Trennungszeichen
- * str muss groß genug sein um das gesamte adc-Array zu konvertieren (keine safety checks)
- * @param str
- * @return
+ * Function to convert the adc array to CSV format with "," as the delimiter.
+ *
+ * @param str must be large enough to convert the entire adc array.
+ * @return Total length of the CSV data (including null terminator)
  */
 uint16_t adcToCsv(char *str) {
     uint16_t len = 0;
     char buf[16];
-
     str[0] = '\0';
-
     for (int i = 0; i < 6; i++) {
         len += sprintf((char *) buf, "%lu", adc[i]) + 1;
         strcat(str, buf);
         strcat(str, ",");
     }
-
     str[len - 1] = '\n';
     return len;
 }
 
 /**
+ * Function to help to print the encoder ticks to show in HTerm.
  *
- * @param str
- * @return
+ * @param str stores the output
+ * @return Total length of the data (including null terminator)
  */
 uint16_t EncoderTicksToString(char *str) {
     uint16_t len = 0;
@@ -215,9 +215,10 @@ uint16_t EncoderTicksToString(char *str) {
 }
 
 /**
+ * Function to help to print the encoder values to show in HTerm.
  *
- * @param str
- * @return
+ * @param str stores the output
+ * @return Total length of the data (including null terminator)
  */
 uint16_t EncoderToString(char *str) {
     uint16_t len = 0;
@@ -231,9 +232,10 @@ uint16_t EncoderToString(char *str) {
 }
 
 /**
+ * Function to help to print the line sensor values to show in HTerm.
  *
- * @param str
- * @return
+ * @param str stores the output
+ * @return Total length of the data (including null terminator)
  */
 uint16_t LineSensorToString(char *str) {
     uint16_t len = 0;
@@ -249,9 +251,10 @@ uint16_t LineSensorToString(char *str) {
 }
 
 /**
+ * Function to help to print the line sensor states, i.e. white or black, to show in HTerm.
  *
- * @param str
- * @return
+ * @param str stores the output
+ * @return Total length of the data (including null terminator)
  */
 uint16_t LineSensorStateToString(char *str) {
     int ileft = adc[5] - LINE_SENSOR_LEFT_OFFSET;
@@ -282,33 +285,31 @@ uint16_t LineSensorStateToString(char *str) {
 }
 
 /**
- * Function for motor control.
- * Sets how fast the left wheel must turn.
+ * Function for motor control. Sets how fast the left wheel must turn.
+ *
  * @param speed if negative then drive backwards, otherwise forwards. Must be in range of (-2^16, 2^16).
  */
 void setSpeedLeft(int speed) {
     speedLeft = speed;
-    if (speed == 0) {
+    if (speed == 0) { // brake / stop
         HAL_GPIO_WritePin(GPIOA, phase2_L_Pin, 0);
         TIM1->CCR2 = 0;
         return;
-
     }
-    if (speed > 0) {
+    if (speed > 0) { // forwards
         HAL_GPIO_WritePin(GPIOA, phase2_L_Pin, 1);
         TIM1->CCR2 = MAX_SPEED - speed;
         return;
     }
-
+    // backwards
     HAL_GPIO_WritePin(GPIOA, phase2_L_Pin, 0);
     TIM1->CCR2 = -speed;
-    return;
-
 }
 
 /**
  * Function for motor control.
  * Sets how fast the right wheel must turn.
+ *
  * @param speed if negative then drive backwards, otherwise forwards. Must be in range of (-2^16, 2^16).
  */
 void setSpeedRight(int speed) {
@@ -317,18 +318,15 @@ void setSpeedRight(int speed) {
         HAL_GPIO_WritePin(GPIOB, phase2_R_Pin, 0);
         TIM1->CCR3 = 0;
         return;
-
     }
     if (speed > 0) {
         HAL_GPIO_WritePin(GPIOB, phase2_R_Pin, 0);
         TIM1->CCR3 = speed;
         return;
     }
-
+    // backwards
     HAL_GPIO_WritePin(GPIOB, phase2_R_Pin, 1);
     TIM1->CCR3 = MAX_SPEED + speed;
-    return;
-
 }
 
 /**
@@ -341,7 +339,7 @@ void setSpeed(int speed) {
 }
 
 
-// Aus Übungsblatt 3
+// Kopiert aus Übungsblatt 3
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc1) {
     for (int i = 0; i < 6; i++) {
         adc[i] = buffer[i];
@@ -350,7 +348,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc1) {
 }
 
 /**
- * Process encoder ticks, by adding ticks to the EncoderTicksLeft and EncoderTicksRight.
+ * Process encoder ticks, by adding ticks to EncoderTicksLeft and EncoderTicksRight.
  */
 void processEncoderTicks() {
     switch (EncoderStateLeft) {
@@ -384,7 +382,8 @@ void processEncoderTicks() {
 }
 
 /**
- * Made the method @processEncoderTicks() cooperative Multitasking friendly (kooperatives Multitasking) hence the name processEncoderTicksCoop
+ * Made the method @processEncoderTicks() cooperative Multitasking friendly (kooperatives
+ * Multitasking) hence the name processEncoderTicksCoop.
  */
 void processEncoderTicksCoop() {
     uint64_t currentTicks = HAL_GetTick();
@@ -395,39 +394,49 @@ void processEncoderTicksCoop() {
 }
 
 /**
+ * Implements "Positionsregelung der Motoren" from Versuch 6.
+ * Since the left encoder sensor and wheel are not functional, movement checks are performed
+ * solely using the right wheel. It is assumed that the left wheel drives straight without
+ * checking.
  *
- * @param speed
+ * Previously, the program incorrectly increased the speed of the left wheel based on the
+ * assumption that it wasn't rotating as much as the right wheel, which was not accurate.
+ * So this change was needed.
+ *
+ * @param speed how fast the wheels are supposed to go
  */
 void regulateSpeed(int speed) {
-
     int difference = EncoderTicksRight - EncoderTicksLeft;
     int correction = difference * tickSpeedRatio;
 
-    rightcounter++;
+    rightCounter++;
 
     // Set new speeds.
     setSpeedLeft(speed + correction);
     setSpeedRight(speed - correction);
-
 }
 
 /**
+ * Made the method @regulateSpeed cooperative Multitasking friendly.
  *
- * @param speed
+ * @param speed how fast the motors are supposed to turn.
  */
 void regulateSpeedCoop(int speed) {
     uint64_t ticks = HAL_GetTick();
     if (ticks - equalizerTimeoutTicks < equalizerDelay)
         return;
     equalizerTimeoutTicks = ticks;
-
     regulateSpeed(speed);
 }
 
 /**
+ * Check how much you traveled in a straight line while considering only the right wheel
+ * encoder ticks.
+ * Multiply this by how many mms you get per tick and check if you traveled more or
+ * equal to the distance.
  *
- * @param distance
- * @return
+ * @param distance amount needed to travel
+ * @return 1 if travelled at least distance amount, otherwise 0.
  */
 int checkDistanceTraveledStraight(int distance) {
     return (((float) (EncoderTicksRight)) * millimetersPerTick
@@ -435,10 +444,12 @@ int checkDistanceTraveledStraight(int distance) {
 }
 
 /**
+ * Makes the robot drive straight with a speed for the specified distance and then stops.
  *
- * @param distance
- * @param speed
- * @return
+ * @param distance amount the robot needs to drive in millimeters.
+ * @param speed how fast the robot has to drive/move, i.e. how fast the motors need to
+ * rotate.
+ * @return 1 if successfully drove distance, otherwise 0.
  */
 int driveStraight(int distance, int speed) {
     if (!executedDriveStraight) {
@@ -448,13 +459,16 @@ int driveStraight(int distance, int speed) {
         executedDriveStraight = 1;
     }
 
-    if (!checkDistanceTraveledStraight(distance)) return 0;
+    if (!checkDistanceTraveledStraight(distance))
+        // didn't travel enough distance
+        return 0;
 
     setSpeed(0);
     return 1;
 }
 
 /**
+ * Made the method @regulateSpeed cooperative Multitasking friendly.
  *
  * @param distance
  * @param speed
@@ -470,14 +484,21 @@ int driveStraightCoop(int distance, int speed) {
 }
 
 /**
+ * Check how many degrees you already turned.
+ * If turned enough then brake.
  *
- * @param ticksPerTurn
- * @param leftBias
- * @param rightBias
- * @return
+ * Don't check left, because left sensor is not working for some reason, do all
+ * movement checks based on right wheel
+ *
+ * @param ticksPerTurn represents how many encoder ticks are needed to turn the certain
+ * amount of degrees.
+ * @param leftBias not needed
+ * @param rightBias adds extra ticks to turn if it motor doesn't turn enough.
+ * @return 1 and brake if turned enough, otherwise 0.
  */
 int checkAngleTurned(int ticksPerTurn, int leftBias, int rightBias) {
-    // Don't check left, because left sensor is not working for some reason, do all movement checks based on right wheel
+    // Don't check left, because left sensor is not working for some reason, do all
+    // movement checks based on right wheel
     if (EncoderTicksRight >= ticksPerTurn + rightBias) {
         setSpeed(0);
         return 1;
@@ -486,13 +507,14 @@ int checkAngleTurned(int ticksPerTurn, int leftBias, int rightBias) {
 }
 
 /**
+ * Turns the robot by the specified angle.
  *
- * @param degrees
- * @param leftBias
- * @param rightBias
- * @param direction
- * @param speed
- * @return
+ * @param degrees       Angle to turn in degrees.
+ * @param leftBias      Left bias for checking angle turned.
+ * @param rightBias     Right bias for checking angle turned.
+ * @param direction     Direction of turn (LEFT or RIGHT).
+ * @param speed         Speed of the turn.
+ * @return              Returns 1 when the turn is completed, 0 otherwise.
  */
 int turn(float degrees, int leftBias, int rightBias,
          directionEnum direction, int speed) {
@@ -512,17 +534,19 @@ int turn(float degrees, int leftBias, int rightBias,
                 break;
         }
 
+        // Calculate how many ticks are needed to turn the specified amount of degrees.
         ticksPerTurn = (int) ceil(degrees / degreesPerTick);
         executedTurnDegrees = 1;
     }
     if (!checkAngleTurned(ticksPerTurn, leftBias, rightBias)) {
         return 0;
     }
-
     setSpeed(0);
     return 1;
 }
+
 /**
+ * Made the method @turn cooperative Multitasking friendly.
  *
  * @param degrees
  * @param leftBias
@@ -542,6 +566,8 @@ int turnCoop(float degrees, int leftBias, int rightBias,
 }
 
 /**
+ * Turns only one wheel instead of both wheels as in @turn.
+ * This method has complications as left encoder isn't working.
  *
  * @param degrees
  * @param leftBias
@@ -582,56 +608,63 @@ int turnOneWheel(float degrees, int leftBias, int rightBias,
 }
 
 /**
+ * Hard codes the yellow part of the parkour.
  *
  * @param speed
- * @return
+ * @return 1 if succesfully completed, otherwise 0.
  */
 int drivePreprogrammedRouteCoop(int speed) {
     static int step = 1;
     switch (step) {
         case 1:
+            // Drive straight for 500mm
             if (!driveStraightCoop(500, speed))
                 return 0;
             step++;
             executedDriveStraight = 0;
             break;
         case 2:
-            // 150 degrees
+            // Turn 150 degrees
             if (!turnCoop(140.f, 0, 0, RIGHT, speed))
                 return 0;
             step++;
             executedTurnDegrees = 0;
             break;
         case 3:
+            // Drive straight for 443mm
             if (!driveStraightCoop(443, speed))
                 return 0;
             step++;
             executedDriveStraight = 0;
             break;
         case 4:
-            // 90 degrees
+            // Turn 90 degrees
             if (!turnCoop(110.f, 0, 0, LEFT, speed))
                 return 0;
             step++;
             executedTurnDegrees = 0;
             break;
         case 5:
+            // Drive stright for 245mm
             if (!driveStraightCoop(245, speed))
                 return 0;
             step++;
             executedDriveStraight = 0;
             break;
         case 6:
+            // Completed
             return 1;
     }
+    // Something wrong happened
     return 0;
 }
 
-// returns 0 when no line was found and 1 if otherwise
 /**
+ * Implemented a PID Regler for the follow line, but only used P regler (the other k values are set to 0)
+ * due to multiple complications.
  *
  * @param speed
- * @return
+ * @return 0 when no line was found, otherwise 1.
  */
 int followLine(int speed) {
     int left = adc[5] - LINE_SENSOR_LEFT_OFFSET;
@@ -689,23 +722,30 @@ int followLine(int speed) {
 }
 
 /**
+ * Implements the execution of the robot if line is lost.
+ * Searches for line if lost. If middle sensor is the last sensor to see the line then assumes that there is a
+ * gap and goes to overcomeGap() Protocol.
+ * Otherwise, turn left and right depending on which sensor saw the line last.
  *
  * @param speed
- * @return
+ * @return 1 if line is found, then brake/stop and return. Otherwise 0.
  */
 int searchLine(int speed) {
     switch (searchState) {
         case 0:
-            setSpeed(0);
-            if (prevMiddleCount > middleThresh) {
+            setSpeed(0); // brake
+
+            if (prevMiddleCount > middleThresh) { // if the middle sensor was the last sensor to see the line then assume
+                // that you reached the Gap and move on to overcomeGap() part in searchState 5.
                 searchState = 5;
                 break;
             }
+            // Start with searching for the line now.
             firstDirection = previError > 0 ? LEFT : RIGHT;
             searchState = 1;
             break;
         case 1:
-
+            // While turning 100 degrees, search for line.
             if (!turnOneWheel(100.f, 0, 0, firstDirection, speed)) {
                 if (isOnLine()) {
                     setSpeed(0);
@@ -717,12 +757,14 @@ int searchLine(int speed) {
             searchState++;
             break;
         case 2:
+            // Turn back to original position.
             if (!turnOneWheel(100.f, 0, 0, firstDirection, -speed)) {
                 return 0;
             }
             searchState++;
             break;
         case 3:
+            // While turning 100 degrees in the other direction, search for line.
             if (!turnOneWheel(100.f, 0, 0, (firstDirection + 1) % 2, speed)) {
                 if (isOnLine()) {
                     setSpeed(0);
@@ -734,7 +776,7 @@ int searchLine(int speed) {
             searchState++;
             break;
         case 4:
-
+            // Turn back to original position.
             if (!turnOneWheel(100.f, 0, 0, (firstDirection + 1) % 2, -speed)) {
                 return 0;
             }
@@ -742,6 +784,7 @@ int searchLine(int speed) {
             break;
 
         case 5:
+            // Drive straight.
             if (!driveStraight(100, speed)) {
                 if (isOnLine()) {
                     setSpeed(0);
@@ -760,10 +803,11 @@ int searchLine(int speed) {
 }
 
 /**
+ * Checks if robot hits an obstacle, by checking if any of the buttons/taster get hit by the obstacle.
  *
- * @return
+ * @return 0 if right and middle button gets hit by obstacle, otherwise 1.
  */
-int touchesSensor() {
+int touchesButton() {
     if (!HAL_GPIO_ReadPin(GPIOA, switch_left_Pin))
         return 1;
     if (!HAL_GPIO_ReadPin(GPIOA, switch_middle_Pin))
@@ -775,15 +819,17 @@ int touchesSensor() {
 }
 
 /**
+ * If robot encounters an obstacle, execute this pre-programmed route to avoid and go around the obstacle.
  *
- * @param direction
- * @param speed
- * @return
+ * @param direction which way it should turn first, depends on which button the obstacle hit.
+ * @param speed how fast it should go around the obstacle
+ * @return 1 if completed successfully otherwise 0.
  */
 int avoidObstacle(directionEnum direction, int speed) {
     int turnSpeed = 50000;
     switch (avoidState) {
         case 0:
+            // Drive backwards
             if (!driveStraight(10, -speed)) {
                 return 0;
             }
@@ -791,6 +837,7 @@ int avoidObstacle(directionEnum direction, int speed) {
             avoidState++;
             break;
         case 1:
+            // Turn 50 degrees
             if (!turn(50.f, 0, 0, direction, turnSpeed))
                 return 0;
 
@@ -798,6 +845,7 @@ int avoidObstacle(directionEnum direction, int speed) {
             avoidState++;
             break;
         case 2:
+            // Drive straight
             if (!driveStraight(160, speed)) {
                 return 0;
             }
@@ -806,6 +854,7 @@ int avoidObstacle(directionEnum direction, int speed) {
             direction = (direction + 1) % 2;
             break;
         case 3:
+            // turn
             if (!turn(50.f, 0, 0, direction, turnSpeed)) {
                 return 0;
             }
@@ -813,6 +862,7 @@ int avoidObstacle(directionEnum direction, int speed) {
             avoidState++;
             break;
         case 4:
+            // drive straight
             if (!driveStraight(100, speed)) {
                 return 0;
             }
@@ -821,6 +871,7 @@ int avoidObstacle(directionEnum direction, int speed) {
             break;
 
         case 5:
+            // turn
             if (!turn(50.f, 0, 0, direction, turnSpeed)) {
                 return 0;
             }
@@ -829,6 +880,7 @@ int avoidObstacle(directionEnum direction, int speed) {
             break;
 
         case 6:
+            // drive straight and check if you find line
             if (!driveStraight(200, speed)) {
                 if (isOnLine()) {
                     setSpeed(0);
@@ -847,7 +899,7 @@ int avoidObstacle(directionEnum direction, int speed) {
 }
 
 /**
- *
+ * Made the method @followLine cooperative Multitasking friendly.
  * @param speed
  */
 void followLineCoop(int speed) {
@@ -859,13 +911,15 @@ void followLineCoop(int speed) {
 }
 
 /**
+ * Implements task_followLine() as seen in Versuch 8.
+ * This controls every state after the yellow part of the parkour.
  *
  * @param speed
  */
 void taskFollowLine(int speed) {
     static int followState = 0;
 
-    int touchState = touchesSensor();
+    int touchState = touchesButton();
     static directionEnum direction = LEFT;
     if (touchState != 2) {
         followState = 2;
@@ -878,6 +932,7 @@ void taskFollowLine(int speed) {
                 followState++;
             break;
         case 1:
+            // if line is lost
             if (searchLine(speed) == 0)
                 break;
             else {
@@ -886,6 +941,7 @@ void taskFollowLine(int speed) {
             }
             break;
         case 2:
+            // if button gets hit by obstacle
             if (!avoidObstacle(direction, speed))
                 break;
             followState = 0;
@@ -896,6 +952,7 @@ void taskFollowLine(int speed) {
 
 
 /**
+ * Method drives the parkour course.
  *
  * @param speed
  */
@@ -903,18 +960,21 @@ void driveCourse(int speed) {
 
     switch (courseState) {
         case 0:
+            // yellow part of parkour
             if (!drivePreprogrammedRouteCoop(40000))
                 break;
             courseState++;
             break;
         case 1:
+            // follow the lines and other problems
             taskFollowLine(speed);
             break;
     }
 }
 
 /**
- *
+ * Run this if left button is pressed at start.
+ * Used to find out different metrics on HTerm.
  */
 void leftButton() {
     processEncoderTicks();
@@ -926,7 +986,9 @@ void leftButton() {
 }
 
 /**
- *
+ * Run this if middle button is pressed at start.
+ * This is the main method to start driving the parkour.
+ * Left LED lights up if the robot is on line.
  */
 void middleButton() {
     processEncoderTicks();
@@ -935,7 +997,9 @@ void middleButton() {
 }
 
 /**
- *
+ * Run this if left button is pressed at start.
+ * This doesn't contain the yellow part, used for testing.
+ * Left LED lights up if the robot is on line.
  */
 void rightButton() {
     processEncoderTicks();
@@ -980,12 +1044,6 @@ int main(void) {
     /* USER CODE BEGIN 2 */
     HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_2);
     HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_3);
-
-////    HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED);
-//
-//    setSpeedLeft(40000);
-//    setSpeedRight(40000);
-
     /* USER CODE END 2 */
 
     /* Infinite loop */
@@ -998,6 +1056,7 @@ int main(void) {
             break;
         }
         if (!HAL_GPIO_ReadPin(GPIOA, switch_middle_Pin)) {
+            // Main method for parkour
             taskPtr = &middleButton;
             break;
         }
@@ -1006,7 +1065,10 @@ int main(void) {
             break;
         }
     }
+    // waits 1,5sec before running the wanted program.
     HAL_Delay(1500);
+
+    // Keep running the selected program.
     while (1) {
 
         /* USER CODE END WHILE */
