@@ -645,7 +645,7 @@ int drivePreprogrammedRouteCoop(int speed) {
 		executedTurnDegrees = 0;
 		break;
 	case 5:
-		// Drive stright for 245mm
+		// Drive straight for 245mm
 		if (!driveStraightCoop(245, speed))
 			return 0;
 		step++;
@@ -678,7 +678,7 @@ int followLine(int speed) {
 	if (leftState && middleState && rightState && (errorIdx == 0))
 		return 0;
 
-	// Falls alle Werte ~ 0 sind, dann findTrack()
+	// if all values are ~ 0 then do findTrack()
 
 	int pError = left - right;
 
@@ -805,7 +805,7 @@ int searchLine(int speed) {
 /**
  * Checks if robot hits an obstacle, by checking if any of the buttons/taster get hit by the obstacle.
  *
- * @return 0 if right and middle button gets hit by obstacle, otherwise 1.
+ * @return 0 if right and middle button gets hit by obstacle, if left button gets hit then 1, otherwise 2.
  */
 int touchesButton() {
 	if (!HAL_GPIO_ReadPin(GPIOA, switch_left_Pin))
@@ -880,7 +880,7 @@ int avoidObstacle(directionEnum direction, int speed) {
 		break;
 
 	case 6:
-		// drive straight and check if you find line
+		// check if you find line while driving straight
 		if (!driveStraight(200, speed)) {
 			if (isOnLine()) {
 				setSpeed(0);
@@ -900,6 +900,7 @@ int avoidObstacle(directionEnum direction, int speed) {
 
 /**
  * Made the method @followLine cooperative Multitasking friendly.
+ *
  * @param speed
  */
 void followLineCoop(int speed) {
@@ -965,7 +966,7 @@ void driveCourse(int speed) {
 		courseState++;
 		break;
 	case 1:
-		// follow the lines and other problems
+		// The rest of the parkour i.e. follow the lines and other problems
 		taskFollowLine(speed);
 		break;
 	}
