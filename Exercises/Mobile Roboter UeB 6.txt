@@ -1,0 +1,18 @@
+Mobile Roboter ÜB 6
+
+1.1
+Ein geschlossener Regelkreis ein Steuerungssystem, in dem die Ausgangsgröße gemessen und an den Eingang 
+zurückgeführt wird. Diese Rückkopplung erlaubt es dem System, seine Leistung basierend auf der Differenz zwischen dem tatsächlichen und dem gewünschten Ausgang zu korrigieren.
+- Der Regler vergleicht den Sollwert (die gewünschte Raddrehzahl) mit dem Istwert (die tatsächliche Raddrehzahl) und berechnet die notwendige Korrektur, um Abweichungen zu minimieren.
+
+- Die Stelleinrichtung ist der Teil des Systems, der die vom Regler berechneten Korrekturen ausführt. Sie setzt die Signale des Reglers in physikalische Aktionen um.
+
+- Die Regelstrecke ist der Teil des Systems, der kontrolliert werden soll. Es ist der Prozess oder das System, dessen Ausgangsgröße geregelt wird. 
+
+- Messeinrichtung: erfasst den aktuellen Wert der Regelgröße und liefert diesen an den Regler zurück. In diesem Fall sind es die Encoder, die die tatsächliche Drehzahl der Räder messen und an den Regler zurückmelden.
+
+1.2
+Regler - Programm
+Stelleinrichtung - Necleoboard
+Regelstrecke - Motor
+Messeinrichtung - Radencoder

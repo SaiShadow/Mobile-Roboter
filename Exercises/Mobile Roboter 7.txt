@@ -1,0 +1,26 @@
+Mobile Roboter 7
+
+
+1.1
+
+  [Line Sensors] --> [Error Calculation] --> [P-Controller] --> [PWM Adjustment] --> [Motors]--  and from the beginning again
+   ^                                                                                            |
+   |---------------------------------------------------------------------------------------------
+
+1.2
+
+Initialize: Start following the line with the P-controller.
+Monitor Sensors: Continuously read sensor values.
+Detect Line Loss:
+If both sensors detect white, the line is lost.
+Execute Search Strategy:
+Stop the robot.
+Rotate left by 90 degrees.
+Check sensors:
+    If line is detected, adjust orientation and continue following.
+    If not, rotate right by 180 degrees.
+    Check sensors again:
+        If line is detected, adjust orientation and continue following.
+        If not, rotate back to the original position.
+Move forward slightly or assume that its a straight line till the next black line and drive straight.
+Repeat the search process.

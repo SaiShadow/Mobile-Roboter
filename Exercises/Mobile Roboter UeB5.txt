@@ -1,0 +1,51 @@
+Mobile Roboter ÜB5
+Sai Srijan Papineni 2417956
+
+2.1
+Interrupts dienen dazu, Ereignisse zu behandeln, die asynchron zum Hauptprogrammablauf auftreten. Sie ermöglichen es dem Prozessor, sofort auf bestimmte Bedingungen oder Ereignisse zu reagieren, wie zum Beispiel ein Hardware-Signal oder das Ablaufen eines Timers, ohne dass ständig nach diesen Ereignissen gefragt werden muss (Polling).
+
+2.2
+Interrupts bieten eine sofortige Reaktion auf kritische Ereignisse und verbessern so die Systemreaktionsfähigkeit.
+
+Interrupts ermöglichen es der CPU, das Hauptprogramm weiter auszuführen, bis ein Ereignis auftritt, wodurch das ständige Abfragen (Polling) reduziert wird.
+
+2.3
+Interrupts können die Softwareentwicklung komplexer machen, was das Debugging und die Wartung erschwert.
+
+Das Umschalten des Kontextes durch Interrupts kann zusätzlichen Overhead verursachen.
+
+Falsches Management der Interrupt-Prioritäten kann dazu führen, dass kritische Ereignisse verpasst oder verzögert werden, was zu Systeminstabilität führen kann.
+
+
+2.4
+Polling ist eine Alternative zu Interrupts. Beim Polling überprüft die CPU kontinuierlich den Status eines Geräts oder einer Bedingung in einer Schleife.
+
+3.1
+ermöglicht es dem Betriebssystem, Tasks zu unterbrechen und zwischen ihnen zu wechseln, um sicherzustellen, dass alle Tasks eine faire Zuteilung der CPU-Zeit erhalten. Der Scheduler kann eine laufende Task zwangsweise unterbrechen, um eine andere Task zu starten oder fortzusetzen, basierend auf Priorität und Zeitfenstern.
+
+3.2
+Tasks freiwillig die Kontrolle über die CPU abgeben, entweder durch Abschluss ihrer Ausführung oder durch explizites Aufrufen einer Funktion zur Task-Übergabe. 
+
+3.3
+Präemptives Multitasking wird vom Betriebssystem gesteuert, während kooperatives Multitasking von den Tasks selbst gesteuert wird.
+
+3.4
+Präemptives Multitasking ist möglicherweise nicht für Mikrocontroller geeignet aufgrund ihrer begrenzten Ressourcen. Der Overhead durch Kontextwechsel und die Komplexität eines präemptiven Schedulers können erhebliche CPU-Zyklen und Speicherressourcen verbrauchen, die in Mikrocontroller-Umgebungen oft knapp sind.
+
+
+4.1
+Code soll ein LED Green jede 500ms blinken leuchten lassen und wiederausmachen. Das in ne Frequenz von je 500ms. Und danach soll der Battery von ADC abgelesen und UART ausgegeben werden.
+
+4.2
+Die Msleep-Funktion in jeder Task verursacht blockierende Verzögerungen, die verhindern, dass andere Tasks während dieser Verzögerungen ausgeführt werden.
+Die LED blinkt mit einer Periode, die länger als 500ms ist, aufgrund der blockierenden Natur von taskPrintADC. Der ADC-Wert wird mit einer Periode ausgegeben, die länger als 200ms ist, aufgrund der blockierenden Natur von taskLED.
+
+4.3
+
+          +--------------+        nach 500 ms       +--------------+
+          |              | <----------------------- |              |
+          |   eStateA    |                          |   eStateB    |
+          |  (LED an)    | -----------------------> |  (LED aus)   |
+          |              |        nach 500 ms       |              |
+          +------+-------+                          +------+-------+
+
