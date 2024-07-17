@@ -350,6 +350,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc1) {
  * Process encoder ticks, by adding ticks to EncoderTicksLeft and EncoderTicksRight.
  */
 void processEncoderTicks() {
+	
 	switch (EncoderStateLeft) {
 	case 0:
 		if (adc[1] >= ENCODER_UPPER_BOUND_LEFT) {
@@ -364,6 +365,7 @@ void processEncoderTicks() {
 		}
 		break;
 	}
+
 	switch (EncoderStateRight) {
 	case 0:
 		if (adc[4] >= ENCODER_UPPER_BOUND_RIGHT) {
