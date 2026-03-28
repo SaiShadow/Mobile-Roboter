@@ -1,0 +1,17 @@
+# IDE metadata
+/.metadata/
+
+# Build artifacts
+*.o
+*.elf
+*.bin
+*.hex
+
+# Test directories
+Firmware/tst/
+Answers/test/
+
+# OS and editor files
+*.DS_Store
+*.swp
+/.idea/
